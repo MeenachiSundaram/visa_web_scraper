@@ -3,7 +3,13 @@ username = 'your_username'
 password = 'your_strong_password'
 url_id = '41231513' # This is the number id in the url (e.g.: https://ais.usvisa-info.com/en-pe/niv/schedule/41231513)
 country_code = 'pe' # This is the country code in the url
+validation_text = 'There are no available appointments at this time.'
+# validation_text = 'FORCING SCREENSHOT' # comment above and uncomment this to force screenshot
 
 # Telegram bot token and chat 
 token = 'telegram_token'
 chat_id = 'chat_id'
+
+# Pagem app
+pagem_api_key='api_key'
+pagem_app_id='app_id'
