@@ -6,7 +6,7 @@ import time
 import sys
 from telegram import send_message, send_photo
 from pagem import send_page
-from creds import username, password, url_id, country_code, validation_text
+from creds import username, password, url_id, country_code, validation_text, notification_chat_id
 
 
 def run_visa_scraper(url, no_appointment_text):
@@ -73,8 +73,10 @@ def run_visa_scraper(url, no_appointment_text):
     chrome_options = Options()
     # chrome_options.add_argument("--disable-extensions")
     # chrome_options.add_argument("--disable-gpu")
-    # chrome_options.add_argument("--no-sandbox") # linux only
+    chrome_options.add_argument("--no-sandbox") # linux only
     chrome_options.add_argument("--headless") # Comment for visualy debugging
+    chrome_options.add_argument('window-size=1920,1080')
+    # chrome_options.add_argument("--start-maximized")
 
     # Initialize the chromediver (must be installed and in PATH)
     # Needed to implement the headless option
@@ -93,14 +95,15 @@ def run_visa_scraper(url, no_appointment_text):
             driver.close()
             exit()
         else:
-            # print(f'No change was found. Checking again in {seconds_between_checks} seconds.')
-            # time.sleep(seconds_between_checks)
-            for seconds_remaining in range(int(seconds_between_checks), 0, -1):
-                sys.stdout.write('\r')
-                sys.stdout.write(
-                    f'No change was found. Checking again in {seconds_remaining} seconds.')
-                sys.stdout.flush()
-                time.sleep(1)
+            print(f'No change was found. Checking again in {seconds_between_checks} seconds.')
+            send_message(f'No change was found. Checking again in {seconds_between_checks} seconds.', notification_chat_id, True)
+            time.sleep(seconds_between_checks)
+            # for seconds_remaining in range(int(seconds_between_checks), 0, -1):
+            #     sys.stdout.write('\r')
+            #     sys.stdout.write(
+            #         f'No change was found. Checking again in {seconds_remaining} seconds.')
+            #     sys.stdout.flush()
+            #     time.sleep(1)
             print('\n')
 
 

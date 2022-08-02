@@ -2,11 +2,12 @@ import requests
 from creds import token, chat_id
 
 
-def send_message(text):
+def send_message(text, chat_id=chat_id, notification=False):
     url = f'https://api.telegram.org/bot{token}/sendMessage'
     parameters = {
         'chat_id': chat_id,
-        'text': text
+        'text': text, 
+        'disable_notification': notification
     }
     return requests.post(url, parameters)
 

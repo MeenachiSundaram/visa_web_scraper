@@ -20,3 +20,14 @@ Run via SSH on a Raspberry. The process will create a
 nohup python3 selenium_scraper.py &
 ```
 
+
+# Telegram
+
+## Send first message to bot in a group chat
+
+```
+curl -X POST \
+     -H 'Content-Type: application/json' \
+     -d '{"chat_id": "<chat-id>", "text": "This is a test from curl", "disable_notification": true}' \
+     https://api.telegram.org/bot<bot-token>/sendMessage
+```
