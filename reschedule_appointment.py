@@ -9,6 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 
 import time
+import logging
 import random
 import json
 from datetime import datetime
@@ -43,45 +44,51 @@ def MY_CONDITION(month, day):
 
 STEP_TIME = 0.5  # time between steps (interactions with forms): 0.5 seconds
 RETRY_TIME = 60 * 10  # wait time between retries/checks for available dates: 10 minutes
-EXCEPTION_TIME = 60 * 30  # wait time when an exception occurs: 30 minutes
-COOLDOWN_TIME = 60 * 60  # wait time when temporary banned (empty list): 60 minutes
+# EXCEPTION_TIME = 60 * 30  # wait time when an exception occurs: 30 minutes
+# COOLDOWN_TIME = 60 * 60  # wait time when temporary banned (empty list): 60 minutes
 
 DATE_URL = f"https://ais.usvisa-info.com/en-{COUNTRY_CODE}/niv/schedule/{SCHEDULE_ID}/appointment/days/{FACILITY_ID}.json?appointments[expedite]=false"
 TIME_URL = f"https://ais.usvisa-info.com/en-{COUNTRY_CODE}/niv/schedule/{SCHEDULE_ID}/appointment/times/{FACILITY_ID}.json?date=%s&appointments[expedite]=false"
 APPOINTMENT_URL = f"https://ais.usvisa-info.com/en-{COUNTRY_CODE}/niv/schedule/{SCHEDULE_ID}/appointment"
-EXIT = False
+# EXIT = False
+
+logging.basicConfig(level=logging.INFO, filename="visa.log", filemode="a+", format="%(asctime)-15s %(levelname)-8s %(message)s")
+
+
+# To run Chrome in a virtual display with xvfb (just in Linux)
+# display = Display(visible=0, size=(800, 600))
+# display.start()
 
 # Setting Chrome options to run the scraper headless.
 chrome_options = Options()
 # chrome_options.add_argument("--disable-extensions")
 # chrome_options.add_argument("--disable-gpu")
-# chrome_options.add_argument("--no-sandbox") # linux only
-# chrome_options.add_argument("--headless") # Comment for visualy debugging
-# chrome_options.add_argument('window-size=1920,1080')
+chrome_options.add_argument("--no-sandbox") # linux only
+chrome_options.add_argument("--headless") # Comment for visualy debugging
+chrome_options.add_argument('window-size=1920,1080')
 # chrome_options.add_argument("--start-maximized")
 
 # Initialize the chromediver (must be installed and in PATH)
 # Needed to implement the headless option
 driver = webdriver.Chrome(options=chrome_options)
 
-
 def do_login_action():
-    print("\tinput email")
+    logging.info("\tinput email")
     user = driver.find_element(By.ID, "user_email")
     user.send_keys(USERNAME)
     time.sleep(random.randint(1, 3))
 
-    print("\tinput pwd")
+    logging.info("\tinput pwd")
     pw = driver.find_element(By.ID, "user_password")
     pw.send_keys(PASSWORD)
     time.sleep(random.randint(1, 3))
 
-    print("\tclick privacy")
+    logging.info("\tclick privacy")
     box = driver.find_element(By.CLASS_NAME, "icheckbox")
     box.click()
     time.sleep(random.randint(1, 3))
 
-    print("\tcommit")
+    logging.info("\tcommit")
     btn = driver.find_element(By.NAME, "commit")
     btn.click()
     time.sleep(random.randint(1, 3))
@@ -90,28 +97,10 @@ def do_login_action():
         Wait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, REGEX_CONTINUE))
         )
-        print("\tlogin successful!")
+        logging.info("\tlogin successful!")
     except TimeoutError:
-        print("\tLogin failed!")
+        logging.warning("\tLogin failed!")
         login()
-
-
-def has_website_changed():
-    driver.get(APPOINTMENT_URL)
-    time.sleep(random.randint(5, 10))
-    # Checks for changes in the site. Returns True if a change was found.
-    print("\tChecking for changes in UI.")
-    # # For debugging false positives.
-    with open("debugging/page_source.html", "w", encoding="utf-8") as f:
-        f.write(driver.page_source)
-    # Getting main text
-    main_page = driver.find_element(By.ID, "main")
-    print(main_page.text)
-    # For debugging false positives.
-    with open("debugging/main_page", "w") as f:
-        f.write(main_page.text)
-    # If the "no appointment" text is not found return True. A change was found.
-    return validation_text not in main_page.text
 
 
 def login():
@@ -122,7 +111,7 @@ def login():
     a.click()
     time.sleep(STEP_TIME)
 
-    print("Login start...")
+    logging.info("Login start...")
     href = driver.find_element(
         By.XPATH, '//*[@id="header"]/nav/div[2]/div[1]/ul/li[3]/a'
     )
@@ -130,7 +119,7 @@ def login():
     time.sleep(STEP_TIME)
     Wait(driver, 60).until(EC.presence_of_element_located((By.NAME, "commit")))
 
-    print("\tclick bounce")
+    logging.info("\tclick bounce")
     a = driver.find_element(By.XPATH, '//a[@class="down-arrow bounce"]')
     a.click()
     time.sleep(STEP_TIME)
@@ -155,35 +144,29 @@ def get_time(date):
     content = driver.find_element(By.TAG_NAME, "pre").text
     data = json.loads(content)
     time = data.get("available_times")[-1]
-    print(f"Got time successfully! {date} {time}")
+    logging.info(f"Got time successfully! {date} {time}")
     return time
 
 
 def reschedule(date):
     global EXIT
-    print(f"Starting Reschedule ({date})")
+    logging.info(f"Starting Reschedule ({date})")
 
     time = get_time(date)
     driver.get(APPOINTMENT_URL)
 
     data = {
-        "utf8": driver.find_element_by_name("utf8").get_attribute("value"),
-        "authenticity_token": driver.find_element_by_name(
-            "authenticity_token"
-        ).get_attribute("value"),
-        "confirmed_limit_message": driver.find_element_by_name(
-            "confirmed_limit_message"
-        ).get_attribute("value"),
-        "use_consulate_appointment_capacity": driver.find_element_by_name(
-            "use_consulate_appointment_capacity"
-        ).get_attribute("value"),
-        "appointments[consulate_appointment][facility_id]": FACILITY_ID,  # 108
+        "utf8": driver.find_element(by=By.NAME, value='utf8').get_attribute('value'),
+        "authenticity_token": driver.find_element(by=By.NAME, value='authenticity_token').get_attribute('value'),
+        "confirmed_limit_message": driver.find_element(by=By.NAME, value='confirmed_limit_message').get_attribute('value'),
+        "use_consulate_appointment_capacity": driver.find_element(by=By.NAME, value='use_consulate_appointment_capacity').get_attribute('value'),
+        "appointments[consulate_appointment][facility_id]": FACILITY_ID,
         "appointments[consulate_appointment][date]": date,
         "appointments[consulate_appointment][time]": time,
     }
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36",
+        "User-Agent": driver.execute_script("return navigator.userAgent;"),
         "Referer": APPOINTMENT_URL,
         "Cookie": "_yatri_session=" + driver.get_cookie("_yatri_session")["value"],
     }
@@ -208,10 +191,9 @@ def is_logged_in():
 
 
 def print_dates(dates):
-    print("Available dates:")
+    logging.info("Available dates:")
     for d in dates:
-        print("%s \t business_day: %s" % (d.get("date"), d.get("business_day")))
-    print()
+        logging.info("%s \t business_day: %s" % (d.get("date"), d.get("business_day")))
 
 
 last_seen = None
@@ -224,10 +206,10 @@ def get_available_date(dates):
         my_date = datetime.strptime(MY_SCHEDULE_DATE, "%Y-%m-%d")
         new_date = datetime.strptime(date, "%Y-%m-%d")
         result = my_date > new_date
-        print(f"Is {my_date} > {new_date}:\t{result}")
+        logging.info(f"Is {my_date} > {new_date}:\t{result}")
         return result
 
-    print("Checking for an earlier date:")
+    logging.info("Checking for an earlier date:")
     for d in dates:
         date = d.get("date")
         if is_earlier(date) and date != last_seen:
@@ -245,51 +227,88 @@ def push_notification(dates):
     send_photo(driver.get_screenshot_as_png())
 
 
-if __name__ == "__main__":
+def run_visa_scraper(appointment_url, validation_text):
+    def has_website_changed():
+        '''Checks for changes in the site. Returns True if a change was found.'''
+        # Getting the website to check
+        driver.get(appointment_url)
+        time.sleep(random.randint(5, 10))
+
+        logging.info('\t\tChecking for changes in UI.')
+        
+        # # For debugging false positives.
+        with open('debugging/page_source.html', 'w', encoding='utf-8') as f:
+            f.write(driver.page_source)
+
+        # Getting main text
+        main_page = driver.find_element(By.ID, 'main')
+
+        # For debugging false positives.
+        with open('debugging/main_page', 'w') as f:
+            f.write(main_page.text)
+
+        # If the "no appointment" text is not found return True. A change was found. 
+        if validation_text not in main_page.text:
+            logging.info(f"\t\t'{validation_text}' - text NOT FOUND in UI")
+            return True
+        else:
+            logging.info(f"\t\t'{validation_text}' - text found in UI")
+            return False
+
+
     login()
-    retry_count = 0
-    while 1:
-        if retry_count > 6000:
-            break
-        try:
-            print("------------------")
-            print(datetime.today())
-            print(f"Retry count: {retry_count}")
-            print()
+    time.sleep(random.randint(1, 3))
+    while True:
+        current_time = time.strftime('%a, %d %b %Y %H:%M:%S', time.localtime())
+        logging.info(f'Starting a new check at {current_time}.')
+        if has_website_changed():
+            logging.info('A change was found. Notifying it.')
+            send_photo(driver.get_screenshot_as_png())
+            send_message('A change was found. Here is an screenshot.')
+            send_page('A change was found. paging it.')
+            
+            x = get_date()
+            dates = x[:5]
+            logging.info(f"List of dates: {dates}")
+            if dates:
+                print_dates(dates)
+                date = get_available_date(dates)
+                logging.info(f"New date: {date}")
+                if date:
+                    reschedule(date)
+                    push_notification(dates)
 
-            if has_website_changed():
-                print('A change was found. Notifying it.')
-                send_message('A change was found. Here is an screenshot.')
-                send_photo(driver.get_screenshot_as_png())
-                send_page('A change was found. paging it.')
+                # Closing the driver before quiting the script.
+                driver.close()
+                exit()
+        else:
+            x = get_date()
+            dates = x[:5]
+            logging.info(f"List of dates: {dates}")
+            if dates:
+                print_dates(dates)
+                date = get_available_date(dates)
+                logging.info(f"New date: {date}")
+                if date:
+                    reschedule(date)
+                    push_notification(dates)
 
-            dates = get_date()[:5]
-            # if not dates:
-            #     msg = "List is empty"
-            #     send_message(msg, notification_chat_id)
-            #     EXIT = True
-            print_dates(dates)
-            date = get_available_date(dates)
-            print()
-            print(f"New date: {date}")
-            if date:
-                reschedule(date)
-                push_notification(dates)
+                # Closing the driver before quiting the script.
+                driver.close()
+                exit()
+                
+            logging.info(f'No change was found. Checking again in {RETRY_TIME} seconds.')
+            send_message(f'No change was found. Checking again in {RETRY_TIME} seconds.', notification_chat_id, True)
+            send_photo(driver.get_screenshot_as_png(), notification_chat_id, True)
+            logging.info('- '*30)
+            time.sleep(RETRY_TIME)
 
-            if EXIT:
-                print("------------------exit")
-                break
 
-            if not dates:
-                msg = "Dates List is empty, Retry in {RETRY_TIME} seconds"
-                send_message(msg, notification_chat_id)
-                # EXIT = True
-                time.sleep(RETRY_TIME)
 
-        except:
-            retry_count += 1
-            time.sleep(EXCEPTION_TIME)
-
-    if not EXIT:
+if __name__ == "__main__":
+    try:
+        run_visa_scraper(APPOINTMENT_URL,validation_text)
+    except Exception as err:
+        logging.warning(err)
         send_message("HELP! Crashed.")
-        send_photo(driver.get_screenshot_as_png())
+        send_message(err)

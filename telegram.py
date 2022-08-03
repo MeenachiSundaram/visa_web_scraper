@@ -12,10 +12,11 @@ def send_message(text, chat_id=chat_id, notification=False):
     return requests.post(url, parameters)
 
 
-def send_photo(photo_file):
+def send_photo(photo_file,chat_id=chat_id, notification=False):
     url = f'https://api.telegram.org/bot{token}/sendPhoto'
     parameters = {
-        'chat_id': chat_id
+        'chat_id': chat_id,
+        'disable_notification': notification
     }
     return requests.post(url, parameters, files={'photo': photo_file})
 
